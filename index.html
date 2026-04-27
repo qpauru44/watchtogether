@@ -200,6 +200,16 @@ input[type=text]::placeholder{color:var(--muted2)}
 <!-- PeerJS from CDN -->
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
+// Fix: Edge/Firefox Tracking Prevention blocks localStorage used by PeerJS
+try { localStorage.setItem('_t','1'); localStorage.removeItem('_t'); } catch(e) {
+  const _ls={};
+  Object.defineProperty(window,'localStorage',{get:()=>({
+    getItem:k=>_ls[k]??null,
+    setItem:(k,v)=>{_ls[k]=String(v)},
+    removeItem:k=>{delete _ls[k]},
+    clear:()=>{for(let k in _ls)delete _ls[k]}
+  })});
+}
 let myName='', myCode='', peer=null, conn=null, isHost=false;
 
 // ── short code generator ──────────────────────────────────────────────────
