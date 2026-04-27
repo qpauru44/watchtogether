@@ -200,16 +200,6 @@ input[type=text]::placeholder{color:var(--muted2)}
 <!-- PeerJS from CDN -->
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
-// Fix: Edge/Firefox Tracking Prevention blocks localStorage used by PeerJS
-try { localStorage.setItem('_t','1'); localStorage.removeItem('_t'); } catch(e) {
-  const _ls={};
-  Object.defineProperty(window,'localStorage',{get:()=>({
-    getItem:k=>_ls[k]??null,
-    setItem:(k,v)=>{_ls[k]=String(v)},
-    removeItem:k=>{delete _ls[k]},
-    clear:()=>{for(let k in _ls)delete _ls[k]}
-  })});
-}
 let myName='', myCode='', peer=null, conn=null, isHost=false;
 
 // ── short code generator ──────────────────────────────────────────────────
@@ -298,11 +288,7 @@ function initPeer(customId, onOpen){
   peer.on('connection', c=>{
     conn=c;
     setupConn();
-    document.getElementById('s-connecting').style.display='none';
-    document.getElementById('app').style.display='flex';
-    setSyncStatus(true);
-    addMsg('','Друг подключился!','sys');
-    toast('🎉 Друг подключился!');
+    // UI updates happen inside setupConn → conn.on('open')
   });
 
   peer.on('error', e=>{
@@ -342,7 +328,12 @@ function goBack(){
 function setupConn(){
   conn.on('open',()=>{
     setSyncStatus(true);
-    if(!isHost){
+    if(isHost){
+      document.getElementById('s-connecting').style.display='none';
+      document.getElementById('app').style.display='flex';
+      addMsg('','Друг подключился!','sys');
+      toast('🎉 Друг подключился!');
+    } else {
       send({t:'hello',name:myName});
       document.getElementById('s-join').style.display='none';
       document.getElementById('s-connecting').style.display='none';
