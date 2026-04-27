@@ -237,52 +237,57 @@ function setSyncStatus(live){
 
 // ── PeerJS config with STUN + TURN servers ──────────────────────────────
 function getPeerConfig(id){
-  const config={
+  const rtcConfig={
+    iceServers:[
+      {urls:'stun:stun.l.google.com:19302'},
+      {urls:'stun:stun1.l.google.com:19302'},
+      {
+        urls:'turn:openrelay.metered.ca:80',
+        username:'openrelayproject',
+        credential:'openrelayproject'
+      },
+      {
+        urls:'turn:openrelay.metered.ca:443',
+        username:'openrelayproject',
+        credential:'openrelayproject'
+      },
+      {
+        urls:'turn:openrelay.metered.ca:443?transport=tcp',
+        username:'openrelayproject',
+        credential:'openrelayproject'
+      }
+    ]
+  };
+  const opts={
     host:'0.peerjs.com',
     port:443,
     secure:true,
     path:'/',
-    config:{
-      iceServers:[
-        {urls:'stun:stun.l.google.com:19302'},
-        {urls:'stun:stun1.l.google.com:19302'},
-        {urls:'stun:stun2.l.google.com:19302'},
-        {
-          urls:'turn:openrelay.metered.ca:80',
-          username:'openrelayproject',
-          credential:'openrelayproject'
-        },
-        {
-          urls:'turn:openrelay.metered.ca:443',
-          username:'openrelayproject',
-          credential:'openrelayproject'
-        },
-        {
-          urls:'turn:openrelay.metered.ca:443?transport=tcp',
-          username:'openrelayproject',
-          credential:'openrelayproject'
-        }
-      ]
-    },
+    config:rtcConfig,
     debug:0
   };
-  if(id) return new Peer(id, config);
-  return new Peer(config);
+  if(id) return new Peer(id, opts);
+  return new Peer(opts);
 }
 
 // ── init peer ─────────────────────────────────────────────────────────────
 function initPeer(customId, onOpen){
-  peer = customId ? getPeerConfig(customId) : getPeerConfig();
+  peer = customId ? getPeerConfig(customId) : getPeerConfig(null);
 
-  peer.on('open', code=>{
-    myCode=code;
-    document.getElementById('conn-code-display').textContent=code;
-    document.getElementById('room-pill').textContent=code;
-    document.getElementById('my-chip').textContent=myName;
-    document.getElementById('peer-status').textContent='Готово — жди друга';
-    const dot=document.getElementById('conn-dot');
-    if(dot){dot.className='status-dot ok';}
-    if(onOpen) onOpen(code);
+  peer.on('open', id=>{
+    myCode=id;
+    // update UI elements if they exist (host screen)
+    const codeEl=document.getElementById('conn-code-display');
+    const pillEl=document.getElementById('room-pill');
+    const chipEl=document.getElementById('my-chip');
+    const dotEl=document.getElementById('conn-dot');
+    const statusEl=document.getElementById('peer-status');
+    if(codeEl) codeEl.textContent=id;
+    if(pillEl) pillEl.textContent=id;
+    if(chipEl) chipEl.textContent=myName;
+    if(statusEl) statusEl.textContent='Готово — жди друга';
+    if(dotEl) dotEl.className='status-dot ok';
+    if(onOpen) onOpen(id);
   });
 
   peer.on('connection', c=>{
@@ -325,19 +330,21 @@ function goBack(){
 }
 
 // ── connection setup ──────────────────────────────────────────────────────
+function showApp(){
+  document.getElementById('s-join').style.display='none';
+  document.getElementById('s-connecting').style.display='none';
+  document.getElementById('app').style.display='flex';
+}
+
 function setupConn(){
   conn.on('open',()=>{
     setSyncStatus(true);
+    showApp();
     if(isHost){
-      document.getElementById('s-connecting').style.display='none';
-      document.getElementById('app').style.display='flex';
       addMsg('','Друг подключился!','sys');
       toast('🎉 Друг подключился!');
     } else {
       send({t:'hello',name:myName});
-      document.getElementById('s-join').style.display='none';
-      document.getElementById('s-connecting').style.display='none';
-      document.getElementById('app').style.display='flex';
       addMsg('','Подключился к комнате!','sys');
     }
   });
@@ -407,7 +414,6 @@ window.joinRoom=function(){
   document.getElementById('join-btn').textContent='Подключаемся...';
 
   initPeer(null, ()=>{
-    // peer ready, now connect to host
     conn=peer.connect(code,{reliable:true,serialization:'json'});
     setupConn();
   });
